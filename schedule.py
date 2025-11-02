@@ -109,12 +109,6 @@ def get_color_for_rank(rank):
 
 def generate_html_table(schedule, rankings, artist_links):
     """Generates the full HTML content for the schedule."""
-    all_venues = sorted(list({
-        event['venue']
-        for day_events in schedule.values()
-        for time_events in day_events.values()
-        for event in time_events
-    }))
 
     html_parts = [f"""<!DOCTYPE html>
 <html lang="en">
@@ -141,11 +135,22 @@ def generate_html_table(schedule, rankings, artist_links):
 
     for day, day_events in schedule.items():
 
+        # check which venues are active for the day
+        venues_for_day = sorted(list({
+            event['venue']
+            for time_events in day_events.values()
+            for event in time_events
+        }))
+
+        if not venues_for_day:
+            continue
+
         html_parts.append(f'<h2>{day}</h2>')
 
+        # build the header using only the venues for this day
         html_parts.append(  '<table><thead><tr><th>Time</th>'
                           + ''.join(f'<th>{venue}</th>'
-                                    for venue in all_venues)
+                                    for venue in venues_for_day)
                           + '</tr></thead><tbody>')
 
         # treats hours 0-4 as 24-28 for sorting purposes
@@ -155,14 +160,14 @@ def generate_html_table(schedule, rankings, artist_links):
 
         for time in sorted(day_events.keys(), key=time_sort_key):
             events_at_time = day_events[time]
-            venue_to_events = {venue: [] for venue in all_venues}
+            venue_to_events = {venue: [] for venue in venues_for_day}
             for event in events_at_time:
                 if event['venue'] in venue_to_events:
                     venue_to_events[event['venue']].append(event['artist'])
 
             html_parts.append(f'<tr><td class="time-cell">{time}</td>')
 
-            for venue in all_venues:
+            for venue in venues_for_day:
 
                 artists = venue_to_events.get(venue, [])
 
