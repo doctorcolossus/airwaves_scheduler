@@ -45,7 +45,7 @@ def load_artists_from_file(filename):
     except Exception as e:
         print(f"An unexpected error occurred while reading the file: {e}")
         return None
-        
+
     return artists
 
 def load_rankings():

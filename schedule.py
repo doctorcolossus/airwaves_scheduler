@@ -4,6 +4,7 @@ import re
 
 RANKINGS_FILE = 'rankings.yaml'
 SCHEDULE_FILE = "schedule.txt"
+MUSICIANS_FILE = 'musicians.txt'
 OUTPUT_HTML_FILE = 'schedule.html'
 
 
@@ -57,6 +58,29 @@ def parse_schedule_file(filename):
 
     return schedule
 
+def parse_musicians_file(filename):
+    """
+    parses musicians.txt to create a lookup dictionary of artist names to URLs
+    """
+
+    artist_links = {}
+
+    line_regex = re.compile(r'^(.*)\s\(([^)]+)\)\s\[([^]]+)\]$')
+
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            for line in f:
+                match = line_regex.match(line.strip())
+                if match:
+                    name, _, url = match.groups()
+                    artist_links[name.strip()] = url
+
+    except FileNotFoundError:
+        print(f"Warning: '{filename}' not found. "
+               "Artist links will not be added to the schedule.")
+
+    return artist_links
+
 def get_color_for_rank(rank):
     """
     generates a background and text color based on a 1-10 ranking
@@ -83,7 +107,7 @@ def get_color_for_rank(rank):
 
     return background_color, text_color
 
-def generate_html_table(schedule, rankings):
+def generate_html_table(schedule, rankings, artist_links):
     """Generates the full HTML content for the schedule."""
     all_venues = sorted(list({
         event['venue']
@@ -158,9 +182,18 @@ def generate_html_table(schedule, rankings):
                             if text_color: # only add color if necessary
                                 style += f' color: {text_color};'
 
+                        link = artist_links.get(artist)
+
+                        artist_html = (f'<a href="{link}" '
+                                       'target="_blank" '
+                                       'style="color: inherit; '
+                                       'text-decoration: none;">'
+                                       f'{artist}</a>'
+                                       if link else artist)
+
                         html_parts.append(
                             f'<li><span class="artist-cell" style="{style}">'
-                            f'{artist}</span></li>')
+                            f'{artist_html}</span></li>')
 
                     html_parts.append('</ul></td>')
 
@@ -172,25 +205,34 @@ def generate_html_table(schedule, rankings):
         html_parts.append('</tbody></table>')
 
     html_parts.append("</body></html>")
+
     return "".join(html_parts)
 
 def main():
-    """Main function to run the process."""
+
     schedule_data = parse_schedule_file(SCHEDULE_FILE)
+
     if schedule_data is None:
         return
 
+    print(f"Loading artist links from {MUSICIANS_FILE}...")
+    artist_links = parse_musicians_file(MUSICIANS_FILE)
+
     print(f"Loading rankings from {RANKINGS_FILE}...")
+
     rankings = {}
+
     if os.path.exists(RANKINGS_FILE):
         with open(RANKINGS_FILE, 'r', encoding='utf-8') as f:
             rankings = yaml.safe_load(f) or {}
         print(f"Found {len(rankings)} ranked artists.")
+
     else:
         print(f"'{RANKINGS_FILE}' not found. No rankings will be applied.")
 
     print("Generating HTML schedule...")
-    html_content = generate_html_table(schedule_data, rankings)
+
+    html_content = generate_html_table(schedule_data, rankings, artist_links)
 
     with open(OUTPUT_HTML_FILE, 'w', encoding='utf-8') as f:
         f.write(html_content)
