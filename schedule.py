@@ -108,30 +108,35 @@ def get_color_for_rank(rank):
     return background_color, text_color
 
 def generate_html_table(schedule, rankings, artist_links):
-    """Generates the full HTML content for the schedule."""
+    """Generates the full, indented HTML content for the schedule."""
 
-    html_parts = [f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iceland Airwaves Ranked Schedule</title>
-    <style>
-        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; background-color: #fdfdfd; color: #333; margin: 0; padding: 20px; }}
-        h1 {{ margin-top: 0; }}
-        h2 {{ border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 40px; }}
-        table {{ border-collapse: collapse; width: 100%; font-size: 14px; margin-bottom: 30px; }}
-        th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }}
-        thead th {{ background-color: #f2f2f2; position: sticky; top: 0; z-index: 1; }}
-        tbody tr:nth-child(even) {{ background-color: #f9f9f9; }}
-        td.time-cell {{ font-weight: bold; width: 60px; }}
-        .artist-cell {{ font-weight: bold; display: block; padding: 4px; margin-bottom: 2px; border-radius: 3px; }}
-        ul {{ margin: 0; padding: 0; list-style-type: none; }}
-    </style>
-</head>
-<body>
-    <h1>Iceland Airwaves Ranked Schedule</h1>
-"""]
+    INDENT = "    "
+
+    html_parts = [
+        "<!DOCTYPE html>",
+        "<html lang=\"en\">",
+        "<head>",
+        f"{INDENT}<meta charset=\"UTF-8\">",
+        f"{INDENT}<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">",
+        f"{INDENT}<title>Iceland Airwaves Ranked Schedule</title>",
+        f"{INDENT}<style>",
+        f"{INDENT*2}body {{ font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; background-color: #fdfdfd; color: #333; margin: 0; padding: 20px; }}",
+        f"{INDENT*2}h1 {{ margin-top: 0; }}",
+        f"{INDENT*2}h2 {{ border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 40px; }}",
+        f"{INDENT*2}table {{ border-collapse: collapse; width: 100%; font-size: 14px; margin-bottom: 30px; }}",
+        f"{INDENT*2}th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }}",
+        f"{INDENT*2}thead th {{ background-color: #f2f2f2; position: sticky; top: 0; z-index: 1; }}",
+        f"{INDENT*2}tbody tr:nth-child(even) {{ background-color: #f9f9f9; }}",
+        f"{INDENT*2}td.time-cell {{ font-weight: bold; width: 60px; }}",
+        f"{INDENT*2}.artist-cell {{ font-weight: bold; display: block; padding: 4px; margin-bottom: 2px; border-radius: 3px; }}",
+        f"{INDENT*2}ul {{ margin: 0; padding: 0; list-style-type: none; }}",
+        f"{INDENT*2}a, a:visited {{ color: inherit; text-decoration: none; }}",
+        f"{INDENT*2}a:hover {{ text-decoration: underline; }}",
+        f"{INDENT}</style>",
+        "</head>",
+        "<body>",
+        f"{INDENT}<h1>Iceland Airwaves Ranked Schedule</h1>"
+    ]
 
     for day, day_events in schedule.items():
 
@@ -145,13 +150,17 @@ def generate_html_table(schedule, rankings, artist_links):
         if not venues_for_day:
             continue
 
-        html_parts.append(f'<h2>{day}</h2>')
+        html_parts.append(f"\n{INDENT}<h2>{day}</h2>")
 
-        # build the header using only the venues for this day
-        html_parts.append(  '<table><thead><tr><th>Time</th>'
-                          + ''.join(f'<th>{venue}</th>'
-                                    for venue in venues_for_day)
-                          + '</tr></thead><tbody>')
+        html_parts.append(f"{INDENT}<table>")
+        html_parts.append(f"{INDENT*2}<thead>")
+        html_parts.append(f"{INDENT*3}<tr>")
+        html_parts.append(f"{INDENT*4}<th>Time</th>")
+        for venue in venues_for_day:
+            html_parts.append(f"{INDENT*4}<th>{venue}</th>")
+        html_parts.append(f"{INDENT*3}</tr>")
+        html_parts.append(f"{INDENT*2}</thead>")
+        html_parts.append(f"{INDENT*2}<tbody>")
 
         # treats hours 0-4 as 24-28 for sorting purposes
         time_sort_key = lambda t: (int(t.split(':')[0]) + 24
@@ -159,13 +168,17 @@ def generate_html_table(schedule, rankings, artist_links):
                                    else int(t.split(':')[0]))
 
         for time in sorted(day_events.keys(), key=time_sort_key):
+
+            html_parts.append(f"{INDENT*3}<tr>")
+            html_parts.append(f'{INDENT*4}<td class="time-cell">{time}</td>')
+            
             events_at_time = day_events[time]
+
             venue_to_events = {venue: [] for venue in venues_for_day}
+
             for event in events_at_time:
                 if event['venue'] in venue_to_events:
                     venue_to_events[event['venue']].append(event['artist'])
-
-            html_parts.append(f'<tr><td class="time-cell">{time}</td>')
 
             for venue in venues_for_day:
 
@@ -173,17 +186,21 @@ def generate_html_table(schedule, rankings, artist_links):
 
                 if artists:
 
-                    html_parts.append('<td><ul>')
+                    html_parts.append(f"{INDENT*4}<td>")
+                    html_parts.append(f"{INDENT*5}<ul>")
 
                     for artist in artists:
 
                         rank = rankings.get(artist)
+
                         background_color, text_color = get_color_for_rank(rank)
 
                         style = ''
 
                         if background_color:
+
                             style = f'background-color: {background_color};'
+
                             if text_color: # only add color if necessary
                                 style += f' color: {text_color};'
 
@@ -196,22 +213,23 @@ def generate_html_table(schedule, rankings, artist_links):
                                        f'{artist}</a>'
                                        if link else artist)
 
-                        html_parts.append(
-                            f'<li><span class="artist-cell" style="{style}">'
-                            f'{artist_html}</span></li>')
+                        html_parts.append(f'{INDENT*6}<li><span class="artist-cell" style="{style}">{artist_html}</span></li>')
 
-                    html_parts.append('</ul></td>')
+                    html_parts.append(f"{INDENT*5}</ul>")
+
+                    html_parts.append(f"{INDENT*4}</td>")
 
                 else:
-                    html_parts.append('<td></td>')
+                    html_parts.append(f"{INDENT*4}<td></td>")
 
-            html_parts.append('</tr>')
+            html_parts.append(f"{INDENT*3}</tr>")
 
-        html_parts.append('</tbody></table>')
+        html_parts.append(f"{INDENT*2}</tbody>")
+        html_parts.append(f"{INDENT}</table>")
 
-    html_parts.append("</body></html>")
+    html_parts.append("</body>\n</html>")
 
-    return "".join(html_parts)
+    return "\n".join(html_parts)
 
 def main():
 
