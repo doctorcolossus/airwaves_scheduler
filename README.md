@@ -1,4 +1,4 @@
-# Iceland Airwaves '25 tools
+# Iceland Airwaves '26 tools
 ## listen to & rank artists, create a personal schedule
 
 These scripts help you choose which shows you want to see at [Airwaves](https://icelandairwaves.is/) by listening to and ranking each artist, then generating a color-coded schedule based on your rankings to help you visualize your ideal schedule.
