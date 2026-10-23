@@ -58,28 +58,40 @@ def parse_schedule_file(filename):
 
     return schedule
 
-def parse_musicians_file(filename):
-    """
-    parses musicians.txt to create a lookup dictionary of artist names to URLs
-    """
+def parse_musicians_file(filename: str) -> dict[str, str]:
+  """
+  parses musicians file to create a lookup dictionary of artist names to URLs
+  """
 
-    artist_links = {}
+  artist_links: dict[str, str] = {}
 
-    line_regex = re.compile(r'^(.*)\s\(([^)]+)\)\s\[([^]]+)\]$')
+  line_pattern = re.compile(r"^(.+?)\s\(([^)]+)\)\s\[([^]]+)\]$")
 
-    try:
-        with open(filename, 'r', encoding='utf-8') as f:
-            for line in f:
-                match = line_regex.match(line.strip())
-                if match:
-                    name, _, url = match.groups()
-                    artist_links[name.strip()] = url
+  try:
+    with open(filename, "r", encoding="utf-8") as artist_file:
 
-    except FileNotFoundError:
-        print(f"Warning: '{filename}' not found. "
-               "Artist links will not be added to the schedule.")
+      for line in artist_file:
+        stripped_line = line.strip()
 
-    return artist_links
+        if not stripped_line:
+          continue
+
+        match = line_pattern.match(stripped_line)
+
+        if match:
+          artist_name, _, artist_slug = match.groups()
+
+          artist_links[artist_name.strip()] = (
+            f"https://icelandairwaves.is/artist/{artist_slug.strip()}/"
+          )
+
+  except FileNotFoundError:
+    print(
+      f"Warning: '{filename}' not found. "
+      "Artist links will not be added to the schedule."
+    )
+
+  return artist_links
 
 def get_color_for_rank(rank):
     """
