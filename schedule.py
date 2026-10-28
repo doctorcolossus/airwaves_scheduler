@@ -1,279 +1,365 @@
-import yaml
 import os
 import re
+import yaml
 
-RANKINGS_FILE = 'rankings.yaml'
+RANKINGS_FILE = "rankings.yaml"
 SCHEDULE_FILE = "schedule.txt"
-MUSICIANS_FILE = 'musicians.txt'
-OUTPUT_HTML_FILE = 'schedule.html'
+MUSICIANS_FILE = "musicians.txt"
+OUTPUT_HTML_FILE = "schedule.html"
 
 
-def parse_schedule_file(filename):
-    """
-    parses an indented text file and returns a structured dictionary
-    Format:
-      Day Name
-        Time
-          Artist (Venue)
-    """
-    schedule = {}
-    current_day = None
-    current_time = None
-    event_regex = re.compile(r'^(.*)\s\(([^)]+)\)$')
+def parse_schedule_file(
+  filename: str,
+) -> dict[str, dict[str, list[dict[str, str | bool]]]]:
+  """parses indented schedule text file into structured dictionary"""
 
-    try:
-        with open(filename, 'r', encoding='utf-8') as f:
-            for i, line in enumerate(f):
-                stripped_line = line.strip()
-                if not stripped_line:
-                    continue
+  schedule: dict[str, dict[str, list[dict[str, str | bool]]]] = {}
 
-                indentation = len(line) - len(line.lstrip(' '))
+  current_day: str | None = None
 
-                if indentation == 0:
-                    current_day = stripped_line
-                    schedule[current_day] = {}
-                elif indentation == 2:
-                    current_time = stripped_line
-                    if current_day:
-                        schedule[current_day][current_time] = []
-                elif indentation >= 4:
-                    if current_day and current_time:
-                        match = event_regex.match(stripped_line)
-                        if match:
-                            artist, venue = match.groups()
-                            schedule[current_day][current_time].append(
-                                {'artist': artist.strip(), 'venue': venue})
-                        else:
-                            print("Warning: Could not parse event line "
-                                  f"{i + 1}: '{stripped_line}'")
+  current_time: str | None = None
 
-    except FileNotFoundError:
-        print(f"Error: The input schedule file '{filename}' was not found.")
-        return None
+  event_pattern = re.compile(r"^(.*?)\s\(([^)]+)\)$")
 
-    except Exception as e:
-        print(f"An unexpected error occurred while reading '{filename}': {e}")
-        return None
+  with open(filename, "r", encoding="utf-8") as schedule_file:
 
-    return schedule
+    for line_number, raw_line in enumerate(schedule_file, start=1):
+      stripped_line = raw_line.strip()
+
+      if not stripped_line:
+        continue
+
+      indentation_level = len(raw_line) - len(raw_line.lstrip(" "))
+
+      if indentation_level == 0:
+        current_day = stripped_line
+        schedule[current_day] = {}
+
+      elif indentation_level == 2:
+        current_time = stripped_line
+
+        if current_day:
+          schedule[current_day][current_time] = []
+
+      elif indentation_level >= 4:
+
+        if current_day and current_time:
+
+          if stripped_line.startswith("* "):
+            is_selected = True
+            event_text = stripped_line[2:].strip()
+
+          else:
+            is_selected = False
+            event_text = stripped_line
+
+          match = event_pattern.match(event_text)
+
+          if not match:
+
+            raise ValueError(
+              f"Could not parse event line {line_number} in {filename}: '{stripped_line}'"
+            )
+
+          artist_name, venue_name = match.groups()
+
+          schedule[current_day][current_time].append(
+            {
+              "artist":   artist_name.strip(),
+              "venue":    venue_name.strip(),
+              "selected": is_selected,
+            }
+          )
+
+  return schedule
+
 
 def parse_musicians_file(filename: str) -> dict[str, str]:
-  """
-  parses musicians file to create a lookup dictionary of artist names to URLs
-  """
+  """parses musicians file to create a lookup dictionary of artist names to URLs"""
 
   artist_links: dict[str, str] = {}
 
   line_pattern = re.compile(r"^(.+?)\s\(([^)]+)\)\s\[([^]]+)\]$")
 
-  try:
-    with open(filename, "r", encoding="utf-8") as artist_file:
+  with open(filename, "r", encoding="utf-8") as artist_file:
 
-      for line in artist_file:
-        stripped_line = line.strip()
+    for line_number, raw_line in enumerate(artist_file, start=1):
+      line = raw_line.strip()
 
-        if not stripped_line:
-          continue
+      if not line:
+        continue
 
-        match = line_pattern.match(stripped_line)
+      match = line_pattern.match(line)
 
-        if match:
-          artist_name, _, artist_slug = match.groups()
+      if not match:
 
-          artist_links[artist_name.strip()] = (
-            f"https://icelandairwaves.is/artist/{artist_slug.strip()}/"
-          )
+        raise ValueError(
+          f"Could not parse line {line_number} in {filename}: '{line}'"
+        )
 
-  except FileNotFoundError:
-    print(
-      f"Warning: '{filename}' not found. "
-      "Artist links will not be added to the schedule."
-    )
+      artist_name, _, artist_slug = match.groups()
+
+      artist_links[artist_name.strip()] = (
+        f"https://icelandairwaves.is/artist/{artist_slug.strip()}/"
+      )
 
   return artist_links
 
-def get_color_for_rank(rank):
-    """
-    generates a background and text color based on a 1-10 ranking
-    interpolates from Red -> Blue -> Green
-    returns a tuple of (background_hex, text_hex)
-    """
 
-    if rank is None or not isinstance(rank, (int, float)):
-        return None, None
+def generate_html_table(
+  schedule:     dict[str, dict[str, list[dict[str, str | bool]]]],
+  rankings:     dict[str, int],
+  artist_links: dict[str, str],
+) -> str:
+  """generates HTML content for ranked festival schedule"""
 
-    red, green, blue = 0, 0, 0
+  indentation = "    "
 
-    if rank <= 5.5: # Red to Blue
-        percent = (rank - 1) / 4.5
-        red, blue = 255 * (1 - percent), 255 * percent
-    else: # Blue to Green
-        percent = (rank - 5.5) / 4.5
-        blue, green = 255 * (1 - percent), 255 * percent
+  navigation_items: list[str] = []
 
-    red, green, blue = int(red), int(green), int(blue)
-    luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255
-    text_color = '#ffffff' if luminance < 0.5 else '#000000'
-    background_color = f'#{red:02x}{green:02x}{blue:02x}'
+  for day in schedule.keys():
+    day_identifier = day.split()[-1].lower()
 
-    return background_color, text_color
+    short_day_name = day_identifier[:2].capitalize()
 
-def generate_html_table(schedule, rankings, artist_links):
-    """Generates the full, indented HTML content for the schedule."""
+    navigation_items.append(
+      f'{indentation*3}<li>'
+      f'<a href="#{day_identifier}">'
+      f'<span class="full-text">{day}</span>'
+      f'<span class="short-text">{short_day_name}</span>'
+      f'</a>'
+      f'</li>'
+    )
 
-    INDENT = "    "
+  navigation_html = "\n".join(navigation_items)
 
-    html_parts = [
-        "<!DOCTYPE html>",
-        "<html lang=\"en\">",
-        "<head>",
-        f"{INDENT}<meta charset=\"UTF-8\">",
-        f"{INDENT}<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">",
-        f"{INDENT}<title>Iceland Airwaves Ranked Schedule</title>",
-        f"{INDENT}<style>",
-        f"{INDENT*2}body {{ font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; background-color: #fdfdfd; color: #333; margin: 0; padding: 20px; }}",
-        f"{INDENT*2}h1 {{ margin-top: 0; }}",
-        f"{INDENT*2}h2 {{ border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 40px; }}",
-        f"{INDENT*2}table {{ border-collapse: collapse; width: 100%; font-size: 14px; margin-bottom: 30px; }}",
-        f"{INDENT*2}th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }}",
-        f"{INDENT*2}thead th {{ background-color: #f2f2f2; position: sticky; top: 0; z-index: 1; }}",
-        f"{INDENT*2}tbody tr:nth-child(even) {{ background-color: #f9f9f9; }}",
-        f"{INDENT*2}td.time-cell {{ font-weight: bold; width: 60px; }}",
-        f"{INDENT*2}.artist-cell {{ font-weight: bold; display: block; padding: 4px; margin-bottom: 2px; border-radius: 3px; }}",
-        f"{INDENT*2}ul {{ margin: 0; padding: 0; list-style-type: none; }}",
-        f"{INDENT*2}a, a:visited {{ color: inherit; text-decoration: none; }}",
-        f"{INDENT*2}a:hover {{ text-decoration: underline; }}",
-        f"{INDENT}</style>",
-        "</head>",
-        "<body>",
-        f"{INDENT}<h1>Iceland Airwaves Ranked Schedule</h1>"
-    ]
+  javascript_logic = f"""{indentation}<script>
+{indentation*2}document.addEventListener("DOMContentLoaded", () => {{
+{indentation*3}const navigationLinks = document.querySelectorAll(".date-navigation a");
+{indentation*3}const intersectionObserver = new IntersectionObserver((entries) => {{
+{indentation*4}entries.forEach(entry => {{
+{indentation*5}if (entry.isIntersecting) {{
+{indentation*6}navigationLinks.forEach(link => {{
+{indentation*7}if (link.getAttribute("href") === "#" + entry.target.id) {{
+{indentation*8}link.classList.add("active");
+{indentation*7}}} else {{
+{indentation*8}link.classList.remove("active");
+{indentation*7}}}
+{indentation*6}}});
+{indentation*5}}}
+{indentation*4}}});
+{indentation*3}}}, {{ root: document.querySelector(".wrapper"), rootMargin: "0px", threshold: 0.2 }});
+{indentation*3}document.querySelectorAll(".day-section").forEach(section => {{
+{indentation*4}intersectionObserver.observe(section);
+{indentation*3}}});
+{indentation*2}}});
+{indentation}</script>"""
 
-    for day, day_events in schedule.items():
+  html_parts = [
+    "<!DOCTYPE html>",
+    "<html lang=\"en\">",
+    "<head>",
+    f"{indentation}<meta charset=\"UTF-8\">",
+    f"{indentation}<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">",
+    f"{indentation}<meta name=\"color-scheme\" content=\"light dark\">",
+    f"{indentation}<title>Iceland Airwaves Ranked Schedule</title>",
+    f"{indentation}<style>",
+    f"{indentation*2}/* --- Base Light Mode Styles (Desktop Default) --- */",
+    f"{indentation*2}html, body {{ margin: 0; padding: 0; background-color: #fdfdfd; color: #222; height: 100%; }}",
+    f"{indentation*2}body {{ font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; display: flex; flex-direction: column; }}",
+    f"{indentation*2}nav.date-navigation {{ padding: 20px 20px 0 20px; z-index: 100; }}",
+    f"{indentation*2}nav.date-navigation ul {{ font-size: 1.5em; margin: 0; padding: 0; list-style-type: none; display: flex; gap: 20px; }}",
+    f"{indentation*2}nav.date-navigation a {{ color: inherit; text-decoration: underline; }}",
+    f"{indentation*2}nav.date-navigation a.active {{ color: #ff0000; text-decoration: none; }}",
+    f"{indentation*2}nav.date-navigation .short-text {{ display: none; }}",
+    f"{indentation*2}div.wrapper {{ overflow: auto; width: 100%; flex: 1; box-sizing: border-box; padding: 20px; -webkit-overflow-scrolling: touch; }}",
+    f"{indentation*2}.day-section {{ margin-bottom: 40px; }}",
+    f"{indentation*2}h2 {{ border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; margin-bottom: 20px; }}",
+    f"{indentation*2}table {{ border-collapse: collapse; width: 100%; min-width: 900px; font-size: 14px; }}",
+    f"{indentation*2}th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }}",
+    f"{indentation*2}span.selected {{ border: 2px solid red; }}",
+    f"{indentation*2}thead th {{ background-color: #f2f2f2; position: sticky; top: 0; z-index: 10; }}",
+    f"{indentation*2}tr th:nth-child(1), tr td:nth-child(1) {{ background-color: #f2f2f2; position: sticky; left: 0; z-index: 10; }}",
+    f"{indentation*2}tr th:nth-child(1) {{ z-index: 20; }}",
+    f"{indentation*2}tbody tr:nth-child(even) {{ background-color: #f9f9f9; }}",
+    f"{indentation*2}td.time-cell {{ font-weight: bold; width: 60px; }}",
+    f"{indentation*2}.artist-cell {{ font-weight: bold; display: block; padding: 4px; margin-bottom: 2px; border-radius: 3px; }}",
+    f"{indentation*2}ul {{ margin: 0; padding: 0; list-style-type: none; }}",
+    f"{indentation*2}.artist-cell a {{ color: inherit; text-decoration: none; }}",
+    f"{indentation*2}.artist-cell a:hover {{ text-decoration: underline; }}",
+    f"{indentation*2}.rank-1 {{ background-color: #ff0000; color: #ffffff; }}",
+    f"{indentation*2}.rank-2 {{ background-color: #c60038; color: #ffffff; }}",
+    f"{indentation*2}.rank-3 {{ background-color: #8d0071; color: #ffffff; }}",
+    f"{indentation*2}.rank-4 {{ background-color: #5500aa; color: #ffffff; }}",
+    f"{indentation*2}.rank-5 {{ background-color: #1c00e2; color: #ffffff; }}",
+    f"{indentation*2}.rank-6 {{ background-color: #001ce2; color: #ffffff; }}",
+    f"{indentation*2}.rank-7 {{ background-color: #0055aa; color: #ffffff; }}",
+    f"{indentation*2}.rank-8 {{ background-color: #008d71; color: #ffffff; }}",
+    f"{indentation*2}.rank-9 {{ background-color: #00c638; color: #ffffff; }}",
+    f"{indentation*2}.rank-10 {{ background-color: #00ff00; color: #000000; }}",
+    f"{indentation*2}/* --- Dark Mode Override --- */",
+    f"{indentation*2}@media (prefers-color-scheme: dark) {{",
+    f"{indentation*3}html, body {{ background-color: #1e1e1e; color: #e0e0e0; }}",
+    f"{indentation*3}h2 {{ border-bottom: 2px solid #444; }}",
+    f"{indentation*3}table, th, td {{ border-color: #555; }}",
+    f"{indentation*3}thead th {{ background-color: #333; }}",
+    f"{indentation*3}tr th:nth-child(1), tr td:nth-child(1) {{ background-color: #333; }}",
+    f"{indentation*3}tbody tr:nth-child(even) {{ background-color: #2c2c2c; }}",
+    f"{indentation*3}td.time-cell {{ color: #e0e0e0; }}",
+    f"{indentation*3}nav.date-navigation a.active {{ color: #ff5555; }}",
+    f"{indentation*2}}}",
+    f"{indentation*2}/* --- 90-Degree Mobile Rotation --- */",
+    f"{indentation*2}@media screen and (max-width: 1024px) {{",
+    f"{indentation*3}html {{ overflow: hidden; width: 100%; height: 100%; }}",
+    f"{indentation*3}body {{ flex-direction: row; position: fixed; top: 0; left: 100vw; width: 100dvh; height: 100vw; transform-origin: top left; transform: rotate(90deg); overflow: hidden; }}",
+    f"{indentation*3}nav.date-navigation {{ width: 44px; height: 100%; padding: 0; background-color: #f2f2f2; border-right: 1px solid #ddd; }}",
+    f"{indentation*3}nav.date-navigation ul {{ flex-direction: column-reverse; justify-content: space-around; align-items: center; height: 100%; }}",
+    f"{indentation*3}nav.date-navigation .full-text {{ display: none; }}",
+    f"{indentation*3}nav.date-navigation .short-text {{ display: block; font-size: 18px; font-weight: bold; }}",
+    f"{indentation*3}div.wrapper {{ padding: 0; }}",
+    f"{indentation*3}.day-section h2 {{ margin: 20px; }}",
+    f"{indentation*3}table {{ width: max-content; min-width: 100%; border-left: none; border-right: none; }}",
+    f"{indentation*2}}}",
+    f"{indentation*2}@media screen and (max-width: 1024px) and (prefers-color-scheme: dark) {{",
+    f"{indentation*3}nav.date-navigation {{ background-color: #1e1e1e; border-color: #444; }}",
+    f"{indentation*2}}}",
+    f"{indentation}</style>",
+    "</head>",
+    "<body>",
+    f"{indentation}<nav class=\"date-navigation\">",
+    f"{indentation*2}<ul>",
+    navigation_html,
+    f"{indentation*2}</ul>",
+    f"{indentation}</nav>",
+    f"{indentation}<div class=\"wrapper\">",
+  ]
 
-        # check which venues are active for the day
-        venues_for_day = sorted(list({
-            event['venue']
-            for time_events in day_events.values()
-            for event in time_events
-        }))
+  for day, day_events in schedule.items():
+    day_identifier = day.split()[-1].lower()
 
-        if not venues_for_day:
-            continue
+    venues_for_day = sorted(
+      list(
+        {
+          event["venue"]
+          for time_events in day_events.values()
+          for event in time_events
+        }
+      )
+    )
 
-        html_parts.append(f"\n{INDENT}<h2>{day}</h2>")
+    if not venues_for_day:
+      continue
 
-        html_parts.append(f"{INDENT}<table>")
-        html_parts.append(f"{INDENT*2}<thead>")
-        html_parts.append(f"{INDENT*3}<tr>")
-        html_parts.append(f"{INDENT*4}<th>Time</th>")
-        for venue in venues_for_day:
-            html_parts.append(f"{INDENT*4}<th>{venue}</th>")
-        html_parts.append(f"{INDENT*3}</tr>")
-        html_parts.append(f"{INDENT*2}</thead>")
-        html_parts.append(f"{INDENT*2}<tbody>")
+    html_parts.append(f"\n{indentation*2}<div class=\"day-section\" id=\"{day_identifier}\">")
+    html_parts.append(f"{indentation*3}<h2>{day}</h2>")
+    html_parts.append(f"{indentation*3}<table>")
+    html_parts.append(f"{indentation*4}<thead>")
+    html_parts.append(f"{indentation*5}<tr>")
+    html_parts.append(f"{indentation*6}<th>Time</th>")
 
-        # treats hours 0-4 as 24-28 for sorting purposes
-        time_sort_key = lambda t: (int(t.split(':')[0]) + 24
-                                   if int(t.split(':')[0]) < 5
-                                   else int(t.split(':')[0]))
+    for venue in venues_for_day:
+      html_parts.append(f"{indentation*6}<th>{venue}</th>")
 
-        for time in sorted(day_events.keys(), key=time_sort_key):
+    html_parts.append(f"{indentation*5}</tr>")
+    html_parts.append(f"{indentation*4}</thead>")
+    html_parts.append(f"{indentation*4}<tbody>")
 
-            html_parts.append(f"{INDENT*3}<tr>")
-            html_parts.append(f'{INDENT*4}<td class="time-cell">{time}</td>')
-            
-            events_at_time = day_events[time]
+    time_sort_key = lambda time_value: (
+      int(time_value.split(":")[0]) + 24
+      if int(time_value.split(":")[0]) < 5
+      else int(time_value.split(":")[0])
+    )
 
-            venue_to_events = {venue: [] for venue in venues_for_day}
+    for time_slot in sorted(day_events.keys(), key=time_sort_key):
 
-            for event in events_at_time:
-                if event['venue'] in venue_to_events:
-                    venue_to_events[event['venue']].append(event['artist'])
+      html_parts.append(f"{indentation*5}<tr>")
+      html_parts.append(
+        f'{indentation*6}<td class="time-cell">{time_slot}</td>'
+      )
 
-            for venue in venues_for_day:
+      events_at_time = day_events[time_slot]
 
-                artists = venue_to_events.get(venue, [])
+      venue_to_events = {venue: [] for venue in venues_for_day}
 
-                if artists:
+      for event in events_at_time:
+        if event["venue"] in venue_to_events:
+          venue_to_events[event["venue"]].append(event)
 
-                    html_parts.append(f"{INDENT*4}<td>")
-                    html_parts.append(f"{INDENT*5}<ul>")
+      for venue in venues_for_day:
 
-                    for artist in artists:
+        events = venue_to_events.get(venue, [])
 
-                        rank = rankings.get(artist)
+        if events:
 
-                        background_color, text_color = get_color_for_rank(rank)
+          html_parts.append(f"{indentation*6}<td>")
+          html_parts.append(f"{indentation*7}<ul>")
 
-                        style = ''
+          for event in events:
+            artist_name = str(event["artist"])
 
-                        if background_color:
+            is_selected = bool(event["selected"])
 
-                            style = f'background-color: {background_color};'
+            rank = rankings.get(artist_name)
 
-                            if text_color: # only add color if necessary
-                                style += f' color: {text_color};'
+            rank_class = f" rank-{rank}" if rank in range(1, 11) else ""
 
-                        link = artist_links.get(artist)
+            selected_class = " selected" if is_selected else ""
 
-                        artist_html = (f'<a href="{link}" '
-                                       'target="_blank" '
-                                       'style="color: inherit; '
-                                       'text-decoration: none;">'
-                                       f'{artist}</a>'
-                                       if link else artist)
+            link = artist_links.get(artist_name)
 
-                        html_parts.append(f'{INDENT*6}<li><span class="artist-cell" style="{style}">{artist_html}</span></li>')
+            artist_html = (
+              f'<a href="{link}" target="_blank">{artist_name}</a>'
+              if link
+              else artist_name
+            )
 
-                    html_parts.append(f"{INDENT*5}</ul>")
+            html_parts.append(
+              f'{indentation*8}<li><span class="artist-cell{rank_class}{selected_class}">{artist_html}</span></li>'
+            )
 
-                    html_parts.append(f"{INDENT*4}</td>")
+          html_parts.append(f"{indentation*7}</ul>")
+          html_parts.append(f"{indentation*6}</td>")
 
-                else:
-                    html_parts.append(f"{INDENT*4}<td></td>")
+        else:
+          html_parts.append(f"{indentation*6}<td></td>")
 
-            html_parts.append(f"{INDENT*3}</tr>")
+      html_parts.append(f"{indentation*5}</tr>")
 
-        html_parts.append(f"{INDENT*2}</tbody>")
-        html_parts.append(f"{INDENT}</table>")
+    html_parts.append(f"{indentation*4}</tbody>")
+    html_parts.append(f"{indentation*3}</table>")
+    html_parts.append(f"{indentation*2}</div>")
 
-    html_parts.append("</body>\n</html>")
+  html_parts.append(f"{indentation}</div>")
+  html_parts.append(javascript_logic)
+  html_parts.append("</body>\n</html>")
 
-    return "\n".join(html_parts)
+  return "\n".join(html_parts)
 
-def main():
 
-    schedule_data = parse_schedule_file(SCHEDULE_FILE)
+def main() -> None:
+  """generates ranked HTML schedule from text schedule and personal rankings"""
 
-    if schedule_data is None:
-        return
+  schedule_data = parse_schedule_file(SCHEDULE_FILE)
 
-    print(f"Loading artist links from {MUSICIANS_FILE}...")
-    artist_links = parse_musicians_file(MUSICIANS_FILE)
+  artist_links = parse_musicians_file(MUSICIANS_FILE)
 
-    print(f"Loading rankings from {RANKINGS_FILE}...")
+  rankings: dict[str, int] = {}
 
-    rankings = {}
+  if os.path.exists(RANKINGS_FILE):
 
-    if os.path.exists(RANKINGS_FILE):
-        with open(RANKINGS_FILE, 'r', encoding='utf-8') as f:
-            rankings = yaml.safe_load(f) or {}
-        print(f"Found {len(rankings)} ranked artists.")
+    with open(RANKINGS_FILE, "r", encoding="utf-8") as rankings_file:
+      loaded_rankings = yaml.safe_load(rankings_file)
 
-    else:
-        print(f"'{RANKINGS_FILE}' not found. No rankings will be applied.")
+      if loaded_rankings:
+        rankings = {
+          str(name): int(score) for name, score in loaded_rankings.items()
+        }
 
-    print("Generating HTML schedule...")
+  html_content = generate_html_table(schedule_data, rankings, artist_links)
 
-    html_content = generate_html_table(schedule_data, rankings, artist_links)
+  with open(OUTPUT_HTML_FILE, "w", encoding="utf-8") as output_file:
+    output_file.write(html_content)
 
-    with open(OUTPUT_HTML_FILE, 'w', encoding='utf-8') as f:
-        f.write(html_content)
-
-    print(f"\nSuccess! "
-          f"Your personalized schedule has been saved to '{OUTPUT_HTML_FILE}'")
 
 if __name__ == "__main__":
-    main()
+  main()
