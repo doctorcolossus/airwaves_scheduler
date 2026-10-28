@@ -136,20 +136,44 @@ def generate_html_table(
   javascript_logic = f"""{indentation}<script>
 {indentation*2}document.addEventListener("DOMContentLoaded", () => {{
 {indentation*3}const navigationLinks = document.querySelectorAll(".date-navigation a");
+{indentation*3}const sectionVisibleHeights = new Map();
+
+{indentation*3}navigationLinks.forEach((link) => {{
+{indentation*4}link.addEventListener("click", () => {{
+{indentation*5}navigationLinks.forEach((otherLink) => otherLink.classList.remove("active"));
+{indentation*5}link.classList.add("active");
+{indentation*4}}});
+{indentation*3}}});
+
+{indentation*3}const thresholdSteps = Array.from({{ length: 21 }}, (_, index) => index * 0.05);
+
 {indentation*3}const intersectionObserver = new IntersectionObserver((entries) => {{
-{indentation*4}entries.forEach(entry => {{
-{indentation*5}if (entry.isIntersecting) {{
-{indentation*6}navigationLinks.forEach(link => {{
-{indentation*7}if (link.getAttribute("href") === "#" + entry.target.id) {{
-{indentation*8}link.classList.add("active");
-{indentation*7}}} else {{
-{indentation*8}link.classList.remove("active");
-{indentation*7}}}
-{indentation*6}}});
+{indentation*4}entries.forEach((entry) => {{
+{indentation*5}sectionVisibleHeights.set(entry.target.id, entry.isIntersecting ? entry.intersectionRect.height : 0);
+{indentation*4}}});
+
+{indentation*4}let activeDayIdentifier = "";
+{indentation*4}let maximumVisibleHeight = 0;
+
+{indentation*4}sectionVisibleHeights.forEach((visibleHeight, dayIdentifier) => {{
+{indentation*5}if (visibleHeight > maximumVisibleHeight) {{
+{indentation*6}maximumVisibleHeight = visibleHeight;
+{indentation*6}activeDayIdentifier = dayIdentifier;
 {indentation*5}}}
 {indentation*4}}});
-{indentation*3}}}, {{ root: document.querySelector(".wrapper"), rootMargin: "0px", threshold: 0.2 }});
-{indentation*3}document.querySelectorAll(".day-section").forEach(section => {{
+
+{indentation*4}if (activeDayIdentifier) {{
+{indentation*5}navigationLinks.forEach((link) => {{
+{indentation*6}if (link.getAttribute("href") === "#" + activeDayIdentifier) {{
+{indentation*7}link.classList.add("active");
+{indentation*6}}} else {{
+{indentation*7}link.classList.remove("active");
+{indentation*6}}}
+{indentation*5}}});
+{indentation*4}}}
+{indentation*3}}}, {{ root: document.querySelector(".wrapper"), rootMargin: "0px", threshold: thresholdSteps }});
+
+{indentation*3}document.querySelectorAll(".day-section").forEach((section) => {{
 {indentation*4}intersectionObserver.observe(section);
 {indentation*3}}});
 {indentation*2}}});
@@ -213,7 +237,7 @@ def generate_html_table(
     f"{indentation*3}html {{ overflow: hidden; width: 100%; height: 100%; }}",
     f"{indentation*3}body {{ flex-direction: row; position: fixed; top: 0; left: 100vw; width: 100dvh; height: 100vw; transform-origin: top left; transform: rotate(90deg); overflow: hidden; }}",
     f"{indentation*3}nav.date-navigation {{ width: 44px; height: 100%; padding: 0; background-color: #f2f2f2; border-right: 1px solid #ddd; }}",
-    f"{indentation*3}nav.date-navigation ul {{ flex-direction: column-reverse; justify-content: space-around; align-items: center; height: 100%; }}",
+    f"{indentation*3}nav.date-navigation ul {{ flex-direction: column; justify-content: space-around; align-items: center; height: 100%; }}",
     f"{indentation*3}nav.date-navigation .full-text {{ display: none; }}",
     f"{indentation*3}nav.date-navigation .short-text {{ display: block; font-size: 18px; font-weight: bold; }}",
     f"{indentation*3}div.wrapper {{ padding: 0; }}",
@@ -237,14 +261,16 @@ def generate_html_table(
   for day, day_events in schedule.items():
     day_identifier = day.split()[-1].lower()
 
+    venue_counts: dict[str, int] = {}
+
+    for time_events in day_events.values():
+      for event in time_events:
+        venue_name = str(event["venue"])
+        venue_counts[venue_name] = venue_counts.get(venue_name, 0) + 1
+
     venues_for_day = sorted(
-      list(
-        {
-          event["venue"]
-          for time_events in day_events.values()
-          for event in time_events
-        }
-      )
+      list(venue_counts.keys()),
+      key=lambda venue: (-venue_counts[venue], venue)
     )
 
     if not venues_for_day:
