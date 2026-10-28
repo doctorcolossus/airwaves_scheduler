@@ -1,4 +1,37 @@
+11/03 Tuesday
+  20:30
+    lúpína (Sky Lagoon)
+
+11/04 Wednesday
+  16:00
+    Tatjana (Alda Music)
+  17:00
+    Bjarni Daníel (12 Tónar)
+  17:45
+    RM Hendrix & Júlía Mogensen (Space Odyssey)
+  18:30
+    Mackenzie Leighton (Lucky Records)
+    Rakel (Lucky Records)
+  19:30
+    lúpína (Reykjavík Record Shop)
+  20:00
+    Shygirl (City Hall)
+  20:15
+    Yang Soup (Smekkleysa)
+
 11/05 Thursday
+  13:00
+    Kuusi (Lucky Records)
+  14:00
+    Orang Volante (Lucky Records)
+  15:00
+    HLACT (heavy like a crumbling tower) (Lucky Records)
+  16:00
+    Jónfrí (Lucky Records)
+  17:00
+    Radiamax (Lucky Records)
+  18:00
+    Hyrrokkin (Lucky Records)
   18:50
     Andervel (Fríkirkjan)
   19:00
@@ -14,6 +47,8 @@
   20:00
     Alba Akvama (Fríkirkjan)
     Gosi (Rosenberg)
+    Nei (Bakken)
+    Daði Freyr & Sinfó (Harpa)
   20:10
     Lucy Dreams (Iðnó)
   20:20
@@ -22,6 +57,8 @@
     virgin orchestra (Kolaport)
   20:40
     State of Grace (Lemmy)
+  21:00
+    Harma (Bakken)
   21:10
     Sævar Jóhannsson (Fríkirkjan)
     Brynja (Rosenberg)
@@ -32,6 +69,8 @@
     Mammút (Kolaport)
   21:40
     bed (Lemmy)
+  22:00
+    Abbadís (Bakken)
   22:20
     Tár (Rosenberg)
     someshiit (Iðnó)
@@ -47,11 +86,23 @@
     The Gnomes (Iðnó)
   23:40
     digital ísland (Kolaport)
-    YARD (Lemmy)
+    Yard (Lemmy)
   00:40
     Flesh Machine (Kolaport)
 
 11/06 Friday
+  13:00
+    Tár (Lucky Records)
+  14:00
+    Motormouf (Lucky Records)
+  15:00
+    desmond the songwriter (Lucky Records)
+  16:00
+    Suntrap (Lucky Records)
+  17:00
+    Patataonstereo (Lucky Records)
+  18:00
+    Revenge of Calculon (Lucky Records)
   18:50
     Yaelokre (Fríkirkjan)
   19:00
@@ -67,6 +118,7 @@
     CeaseTone (Fríkirkjan)
     Axel Flóvent (NASA)
     Tunghoyrt (Rosenberg)
+    Bryndís (Bakken)
   20:10
     Esmeralda Road (Iðnó)
   20:20
@@ -75,12 +127,15 @@
     Einakróna (Kolaport)
   20:40
     Victoryland (Lemmy)
+    Álfgrímur (Bakken)
   21:00
     Nori (NASA)
   21:10
     Jamie Duffy (Fríkirkjan)
     RSP (Rosenberg)
     Sísý Ey (Iðnó)
+  21:15
+    Teegra (Bakken)
   21:20
     Haukur Páll (City Hall)
   21:30
@@ -89,6 +144,7 @@
     Dumbhead (Lemmy)
   22:00
     Pixy (NASA)
+    Ladielex (Bakken)
   22:20
     Dove Ellis (Rosenberg)
     Janus Rasmussen (Iðnó)
@@ -118,6 +174,14 @@
     Emmsjé Gauti (NASA)
 
 11/07 Saturday
+  13:30
+    Lea Kampmann (Lucky Records)
+  14:30
+    Radhika (Lucky Records)
+  16:00
+    Spacestation (Lucky Records)
+  17:15
+    Walt Disco (Lucky Records)
   18:50
     Valborg Ólafs (Fríkirkjan)
   19:00
@@ -133,6 +197,7 @@
     Blood Harmony (Fríkirkjan)
     Koikoi (NASA)
     Arny Margret (Rosenberg)
+    Ann Lemon (Bakken)
   20:10
     Ruvenruven (Iðnó)
   20:20
@@ -143,6 +208,7 @@
     Cell7 (Lemmy)
   21:00
     Bleech 9:3 (NASA)
+    Flesh Machine (Bakken)
   21:10
     Amor Vincit Omnia (Rosenberg)
     Jamie Woon (Iðnó)
@@ -154,6 +220,7 @@
     punktò (Kolaport)
   22:00
     Heartworms (NASA)
+    Juno Paul (Bakken)
   22:20
     Liim (Rosenberg)
     Sandrayati (Fríkirkjan)
@@ -182,3 +249,19 @@
     Inspector Spacetime (Lemmy)
   01:00
     Skeler (NASA)
+
+11/08 Sunday
+  12:00
+    Mt Glitski (Lucky Records)
+  13:00
+    Néfur (Lucky Records)
+  14:00
+    Sísý Ey (Lucky Records)
+  15:00
+    Cell7 (Lucky Records)
+  16:00
+    Teitur (Lucky Records)
+  17:00
+    Brimbrot (Lucky Records)
+  20:00
+    The Streets (Harpa)
